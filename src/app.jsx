@@ -1,7 +1,9 @@
 import { useState } from 'preact/hooks';
 import './app.css';
 import getRange from './get-range.js';
-let startAt = 26;
+
+const initialStartAt = 26;
+let startAt = initialStartAt;
 const startRow = 3;
 
 const rows = {
@@ -17,10 +19,37 @@ const rows = {
   12: 14,
 };
 
+async function fetchQR(msg, amount) {
+  const url = 'https://api.swish.nu/qr/v2/prefilled';
+  //const url = 'https://mpc.getswish.net/qrg-swish/api/v1/prefilled';
+  const response = await fetch(url, {
+    method: 'post',
+    //mode: 'no-cors',
+    body: JSON.stringify({
+      format: 'png', // can be jpg, png or svg
+      payee: '12345678',
+      amount: { value: amount, editable: false },
+      message: { value: msg, editable: false },
+      size: 512,
+      border: 2,
+    }),
+    headers: { 'Content-Type': 'application/json' },
+  }).catch(console.warn);
+
+  const blob = await response.blob();
+  // return blob
+  const imageBlob = blob;
+  // const imageBlob = await fetchImage(url)
+  const imageBase64 = URL.createObjectURL(imageBlob);
+
+  console.log({ imageBase64 });
+  return imageBase64;
+}
+
 export function App() {
-  const [count, setCount] = useState(0);
+  const [qr, setQR] = useState('');
   const eventId = '20220523@17:45';
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
     const seats = [];
     e.target['seat'].forEach((i) => {
@@ -33,16 +62,31 @@ export function App() {
       }
     });
     const price = 50;
-    const msg = `${e.target.eventId.value}: ${getRange(seats)}, ${
-      seats.length * price
-    }:-`;
-    alert(msg);
+    const msg = `${e.target.eventId.value}: ${getRange(seats)}`;
+    const amount = seats.length * price;
+
+    //const qrCode = await fetchQR(msg, amount);
+    //setQR(qrCode);
+    startAt = initialStartAt;
+    console.info(amount, msg, qrCode);
+    // alert(msg);
   };
   return (
     <>
       <header>
         <h1>Mån 23/5 kl. 17:45</h1>
       </header>
+      {!qr ? null : (
+        <img
+          src={qr}
+          alt=""
+          width="256"
+          onClick={() => {
+            setQR('');
+            startAt = initialStartAt;
+          }}
+        />
+      )}
       <main>
         <form action="book" onSubmit={onSubmit} method="get">
           <input type="hidden" name="eventId" value={eventId} />
